@@ -98,6 +98,10 @@ Launch ReadAloud Books on the device and sign in to your server. For connected
 instrumentation tests, run `./gradlew connectedDebugAndroidTest`.
 See [AGENTS.md](AGENTS.md) for code ownership and maintenance gotchas.
 
+Known check limitation: `lintDebug` currently crashes in Compose's
+`ComposableCoroutineCreationDetector`: its metadata reader supports Kotlin 2.0,
+but this project emits 2.1 metadata. Debug APK assembly succeeds; lint is not green.
+
 ### Chapter utility
 
 [`tools/generate_chapters.py`](tools/generate_chapters.py) copies M4B chapter markers
