@@ -78,7 +78,9 @@ your SDK directory, or set `sdk.dir` in an untracked `local.properties` file.
 In an Amp orb, run [`.agents/setup`](.agents/setup) to provision the toolchain and
 warm Gradle plugins and dependency artifacts for builds and tests. Setup also
 installs Google's official `android` CLI and its Amp skill, and persists tool
-paths for new login shells. Warm reruns reuse installed packages and caches;
+paths for new login shells. Orb Gradle defaults use one worker and an in-process
+Kotlin compiler to fit small machines; explicit user settings are preserved.
+Warm reruns reuse installed packages and caches;
 setup reaches future orbs once these files are on the project's default branch.
 No resume hook or server is needed: this app has no local backing service, and
 setup performs no user authentication. Device tests need a connected Android

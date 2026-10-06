@@ -24,7 +24,7 @@ export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export PATH="$JAVA_HOME/bin:$HOME/.local/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
 
 echo "[${SECONDS}s] Installing official Android CLI if missing"
-if ! command -v android >/dev/null; then
+if [[ ! -x "$HOME/.local/bin/android" ]]; then
   case "$(uname -m)" in
     x86_64) cli_arch=linux_x86_64 ;;
     aarch64) cli_arch=linux_arm64 ;;
@@ -74,6 +74,18 @@ fi
 echo "[${SECONDS}s] Installing chapter-tool dependencies"
 [[ -x .venv/bin/python ]] || python3 -m venv .venv
 .venv/bin/python -m pip install --disable-pip-version-check -r tools/requirements.txt
+
+echo "[${SECONDS}s] Setting memory-conscious Gradle defaults"
+gradle_home="${GRADLE_USER_HOME:-$HOME/.gradle}"
+mkdir -p "$gradle_home"
+touch "$gradle_home/gradle.properties"
+# Keep explicit user settings. A separate Kotlin daemon plus parallel workers
+# exhausted a 4 GB orb; one compiler process avoids that extra heap.
+for setting in org.gradle.workers.max=1 kotlin.compiler.execution.strategy=in-process; do
+  if ! grep -qE "^[[:space:]]*${setting%%=*}[[:space:]]*=" "$gradle_home/gradle.properties"; then
+    printf '\n%s\n' "$setting" >> "$gradle_home/gradle.properties"
+  fi
+done
 
 echo "[${SECONDS}s] Warming Gradle plugins and dependency artifacts"
 # Resolve artifacts without compiling: unrelated source failures must not discard
