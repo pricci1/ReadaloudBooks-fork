@@ -33,7 +33,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          gradle assembleRelease \
+          ./gradlew assembleRelease \
             -PenableAbiSplit=true \
             -PversionName=${GITHUB_REF_NAME#v} \
             -PversionCode=$((1000 + GITHUB_RUN_NUMBER))

@@ -42,7 +42,7 @@ jobs:
           echo "Generated tag: $TAG"
 
       - name: Build Debug APK
-        run: gradle assembleDebug -PversionName="${{ steps.version_tag.outputs.tag }}" -PenableAbiSplit=true
+        run: ./gradlew assembleDebug -PversionName="${{ steps.version_tag.outputs.tag }}" -PenableAbiSplit=true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
