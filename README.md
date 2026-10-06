@@ -1,8 +1,22 @@
 # ReadAloud Books
 
-An Android application for audiobook and eBook consumption with a focus on high-quality audio playback and Material You design.
+An Android client for a Storyteller server: browse your library, listen to audiobooks,
+read EPUBs, and follow synchronized text highlighting in ReadAloud books. Built with
+Kotlin, Jetpack Compose, Material 3, and Media3.
 
-## Images
+## Use the app
+
+Install an APK from [GitHub Releases](https://github.com/pricci1/ReadaloudBooks-fork/releases)
+on Android 7.0 (API 24) or later. Sign in with your Storyteller server URL, username,
+and password. Download books before reading or listening offline.
+
+The app includes chapter navigation, playback speed and sleep timer controls,
+reader font/theme settings, and download/storage management. The EPUB reader is
+native and paginated; synchronized highlighting requires a book with alignment data.
+
+## Screenshots
+
+These existing screenshots illustrate the app; layouts may differ from the current build.
 
 <details>
 <summary><strong>Click to expand screenshots</strong></summary>
@@ -57,39 +71,47 @@ An Android application for audiobook and eBook consumption with a focus on high-
 
 </details>
 
+## Build and test
 
+Use JDK 17 and Android SDK 34 with accepted SDK licenses. Set `ANDROID_HOME` to
+your SDK directory, or set `sdk.dir` in an untracked `local.properties` file.
+In an Amp orb, run [`.agents/setup`](.agents/setup) to provision the toolchain and
+warm Gradle dependencies. It does not create an emulator; device tests need a
+connected Android device or runner (orbs lack KVM).
 
+From the repository root:
 
+```sh
+./gradlew assembleDebug
+./gradlew testDebugUnitTest lintDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
-## Features
+Launch ReadAloud Books on the device and sign in to your server. For connected
+instrumentation tests, run `./gradlew connectedDebugAndroidTest`.
+See [AGENTS.md](AGENTS.md) for code ownership and maintenance gotchas.
 
-### Audiobook Playback
-- **Format Support**: Supports M4B, Atmos, and EAC3.
-- **Transcoding**: Integrated FFmpeg streaming proxy for real-time transcoding of unsupported codecs.
-- **Chapter Detection**: Native and probed chapter extraction.
-- **Offline Support**: Local file downloads and storage management.
-- **Playback Controls**: Variable speed (0.5x - 2.0x), sleep timer, and background playback.
+## Releases
 
-### eBook Reader
-- **EPUB Loading**: Fast loading and smooth scrolling of EPUB files.
-- **Customization**: Support for adjustable font sizes, font families, and multiple reader themes (White, Sepia, Dark, OLED).
-- **ReadAloud Sync**: Concurrent audio playback and text highlighting.
+The [release workflow](.github/workflows/android_release.yml) builds and publishes
+APKs when a `v*` tag is pushed. It supplies `versionName` from the tag (without
+the leading `v`), `versionCode` from the workflow run number, and enables ABI splits
+plus a universal APK. Pull requests produce debug APK artifacts through the
+[PR workflow](.github/workflows/android_pr_debug.yml).
 
-### UI & Design
-- **Material You**: Full support for Material 3 and Dynamic Color on Android 12+.
-- **Jetpack Compose**: Entirely declarative UI implementation.
+For a local release:
 
-## Getting Started
+```sh
+./gradlew assembleRelease -PversionName=<version> -PversionCode=<integer>
+```
 
-### Prerequisites
-- Android device running API 24+ (Android 7.0).
-- A Storyteller instance for book metadata and content.
-
-### Build & Release
-This repository uses GitHub Actions for automated releases. Push a tag starting with `v` (e.g., `v1.0.0`) to trigger the build and release process.
-
-## Roadmap
-- [ ] **Grid Customization**: Adjustable grid sizes in library views.
+Replace the placeholders with your release version and integer version code.
+Configure signing through `keystore.properties` or
+`KEYSTORE_FILE`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, and `KEY_PASSWORD`. CI additionally
+uses `KEYSTORE_BASE64` to provision the keystore. **Without a release keystore,
+the build falls back to debug signing**; verify the signing identity before publishing.
+Test on a real device against your Storyteller server before tagging a release.
 
 ## License
-Distributed under the AGPL3 License.
+
+See [LICENSE](LICENSE) for the GNU Affero General Public License v3.0.
