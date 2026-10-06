@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+trap 'echo "[${SECONDS}s] Setup failed at line $LINENO" >&2' ERR
+
+echo "[${SECONDS}s] Checking system tools"
+missing=()
+for package in openjdk-17-jdk-headless curl unzip ffmpeg python3-venv; do
+  if ! dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -qx 'install ok installed'; then
+    missing+=("$package")
+  fi
+done
+if ((${#missing[@]})); then
+  sudo apt-get update -qq
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+fi
+
+JAVA_HOME="/usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture)"
+export JAVA_HOME
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export PATH="$JAVA_HOME/bin:$HOME/.local/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+
+echo "[${SECONDS}s] Installing official Android CLI if missing"
+if ! command -v android >/dev/null; then
+  case "$(uname -m)" in
+    x86_64) cli_arch=linux_x86_64 ;;
+    aarch64) cli_arch=linux_arm64 ;;
+    *) echo "Unsupported Android CLI architecture" >&2; exit 1 ;;
+  esac
+  mkdir -p "$HOME/.local/bin"
+  cli_tmp="$(mktemp)"
+  trap 'rm -f -- "$cli_tmp"' EXIT
+  curl --fail --silent --show-error --location --retry 3 \
+    "https://dl.google.com/android/cli/latest/$cli_arch/android" -o "$cli_tmp"
+  install -m 755 "$cli_tmp" "$HOME/.local/bin/android"
+fi
+android --no-metrics --version
+if [[ ! -f "$HOME/.config/agents/skills/android-cli/SKILL.md" ]]; then
+  android --no-metrics skills add android-cli --agent=amp
+fi
+
+echo "[${SECONDS}s] Checking Android SDK packages"
+compile_sdk="$(sed -nE 's/^[[:space:]]*compileSdk = ([0-9]+).*$/\1/p' app/build.gradle.kts)"
+[[ "$compile_sdk" =~ ^[0-9]+$ ]]
+sdk_packages=()
+[[ -f "$ANDROID_HOME/platforms/android-$compile_sdk/android.jar" ]] || sdk_packages+=("platforms/android-$compile_sdk")
+[[ -x "$ANDROID_HOME/build-tools/34.0.0/aapt2" ]] || sdk_packages+=("build-tools/34.0.0")
+[[ -x "$ANDROID_HOME/platform-tools/adb" ]] || sdk_packages+=(platform-tools)
+[[ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]] || sdk_packages+=(cmdline-tools/latest)
+if ((${#sdk_packages[@]})); then
+  android --no-metrics --sdk="$ANDROID_HOME" sdk install "${sdk_packages[@]}"
+fi
+
+echo "[${SECONDS}s] Persisting tools for non-interactive login shells"
+mkdir -p "$HOME/.config/readaloud-orb"
+# The generated file expands PATH when the next login shell reads it.
+# shellcheck disable=SC2016
+printf 'export JAVA_HOME=%q\nexport ANDROID_HOME=%q\nexport ANDROID_SDK_ROOT=%q\nexport PATH="$JAVA_HOME/bin:$HOME/.local/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"\n' \
+  "$JAVA_HOME" "$ANDROID_HOME" "$ANDROID_HOME" > "$HOME/.config/readaloud-orb/env.sh"
+profile_marker='# ReadAloud Books orb toolchain'
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+  cat >> "$HOME/.bash_profile" <<EOF
+
+$profile_marker
+if [[ "\$PWD" == "$repo_root" || "\$PWD" == "$repo_root/"* ]]; then
+  . "\$HOME/.config/readaloud-orb/env.sh"
+fi
+EOF
+fi
+
+echo "[${SECONDS}s] Installing chapter-tool dependencies"
+[[ -x .venv/bin/python ]] || python3 -m venv .venv
+.venv/bin/python -m pip install --disable-pip-version-check -r tools/requirements.txt
+
+echo "[${SECONDS}s] Warming Gradle plugins and dependency artifacts"
+# Resolve artifacts without compiling: unrelated source failures must not discard
+# the prepared snapshot. Limit concurrency for small orbs; persist no daemons.
+./gradlew --no-daemon --max-workers=2 --no-configuration-cache \
+  --init-script .agents/warm-dependencies.gradle :app:warmOrbDependencies
+echo "[${SECONDS}s] Orb setup ready"

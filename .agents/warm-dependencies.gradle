@@ -1,0 +1,19 @@
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
+// Cache external artifacts, not outputs of this project's uncompiled variants.
+gradle.beforeProject { project ->
+    project.tasks.register('warmOrbDependencies') {
+        doLast {
+            // Kotlin's intermediate metadata configurations lack the final BOM
+            // constraints; the compile/runtime classpaths include those artifacts.
+            project.configurations.findAll {
+                it.canBeResolved && !it.name.endsWith('DependenciesMetadata')
+            }.each { configuration ->
+                logger.lifecycle("Resolving ${project.path}:${configuration.name}")
+                configuration.incoming.artifactView {
+                    componentFilter { it instanceof ModuleComponentIdentifier }
+                }.files.files
+            }
+        }
+    }
+}

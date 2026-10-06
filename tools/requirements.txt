@@ -1,5 +1,1 @@
-openai-whisper
-torch
-tqdm
-ffmpeg-python
-numpy
+tqdm==4.67.1

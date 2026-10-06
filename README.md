@@ -76,8 +76,13 @@ These existing screenshots illustrate the app; layouts may differ from the curre
 Use JDK 17 and Android SDK 34 with accepted SDK licenses. Set `ANDROID_HOME` to
 your SDK directory, or set `sdk.dir` in an untracked `local.properties` file.
 In an Amp orb, run [`.agents/setup`](.agents/setup) to provision the toolchain and
-warm Gradle dependencies. It does not create an emulator; device tests need a
-connected Android device or runner (orbs lack KVM).
+warm Gradle plugins and dependency artifacts for builds and tests. Setup also
+installs Google's official `android` CLI and its Amp skill, and persists tool
+paths for new login shells. Warm reruns reuse installed packages and caches;
+setup reaches future orbs once these files are on the project's default branch.
+No resume hook or server is needed: this app has no local backing service, and
+setup performs no user authentication. Device tests need a connected Android
+device or runner (orbs lack KVM); setup installs no emulator or system image.
 
 From the repository root:
 
@@ -90,6 +95,19 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 Launch ReadAloud Books on the device and sign in to your server. For connected
 instrumentation tests, run `./gradlew connectedDebugAndroidTest`.
 See [AGENTS.md](AGENTS.md) for code ownership and maintenance gotchas.
+
+### Chapter utility
+
+[`tools/generate_chapters.py`](tools/generate_chapters.py) copies M4B chapter markers
+into adjacent `*(readaloud).epub` files **in place**. Back up books before running:
+
+```sh
+.venv/bin/python tools/generate_chapters.py /path/to/book-copies
+```
+
+Orb setup supplies FFmpeg/FFprobe and the Python virtual environment. Outside
+orbs, install FFmpeg and create a venv with `tools/requirements.txt`. The tool
+uses `tqdm`; it does not run speech recognition or need Torch/Whisper.
 
 ## Releases
 
